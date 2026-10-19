@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YUNATV - Universal Stream Player Pro</title>
+    <!-- Video.js CSS -->
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <link href="https://unpkg.com/@videojs/themes@1/dist/city/index.css" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-red-600 selection:text-white">
+
+    <!-- TOP HEADER -->
+    <header class="bg-slate-900 border-b border-slate-800 py-3.5 px-4 sm:px-6 flex justify-between items-center sticky top-0 z-40">
+        <div class="flex items-center space-x-3">
+            <div class="bg-red-600 text-white font-black px-3 py-1 rounded text-xl tracking-wider shadow-lg shadow-red-600/30 cursor-pointer" onclick="navigateTab('all')">YUNATV</div>
+            <span class="text-xs text-slate-400 font-medium hidden md:inline-block border-l border-slate-800 pl-3">Plataforma de Streaming & IPTV</span>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <!-- Auth Status Badge -->
+            <div id="user-badge" class="hidden flex items-center space-x-2 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-full text-xs">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span id="badge-username" class="font-semibold text-slate-200">Cliente</span>
+                <button onclick="handleLogout()" class="text-slate-400 hover:text-red-400 ml-2 text-xs transition">Sair</button>
+            </div>
+
+            <!-- Admin Button -->
+            <button onclick="openAdminModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center space-x-1.5">
+                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                <span>Painel Admin</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENT WALL / LOGIN SCREEN (Unauthenticated Users) -->
+    <section id="auth-wall" class="flex-1 flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 via-red-500 to-orange-500"></div>
+            
+            <div class="text-center mb-6">
+                <h1 class="text-3xl font-black text-white tracking-wide">YUNATV</h1>
+                <p class="text-xs text-slate-400 mt-1">Aceda à sua conta ou solicite a sua inscrição</p>
+            </div>
+
+            <!-- TAB SWITCHER -->
+            <div class="flex border-b border-slate-800 mb-6 text-sm font-semibold">
+                <button id="btn-tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2 text-center text-red-500 border-b-2 border-red-500 transition">Iniciar Sessão</button>
+                <button id="btn-tab-signup" onclick="switchAuthTab('signup')" class="flex-1 py-2 text-center text-slate-400 hover:text-slate-200 transition">Solicitar Inscrição</button>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form id="form-login" onsubmit="handleClientLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nome do Servidor</label>
+                    <input type="text" id="login-server" required placeholder="Ex: YUNATV-SRV-8912" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Código de Acesso do Cliente</label>
+                    <input type="password" id="login-code" required placeholder="Ex: YUNA-7492" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition">
+                </div>
+                <button type="submit" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl text-sm transition shadow-lg shadow-red-600/30 mt-2">
+                    Entrar na Plataforma
+                </button>
+                <p class="text-[11px] text-slate-500 text-center mt-3">Apenas clientes aprovados pelo Administrador com código gerado podem iniciar sessão.</p>
+            </form>
+
+            <!-- SIGNUP FORM -->
+            <form id="form-signup" onsubmit="handleClientSignup(event)" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nome Completo</label>
+                    <input type="text" id="signup-fullname" required placeholder="Seu nome completo" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nome de Utilizador</label>
+                    <input type="text" id="signup-username" required placeholder="Ex: nuno_2026" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Número de WhatsApp (com indicativo)</label>
+                    <input type="tel" id="signup-phone" required placeholder="Ex: 244923000000" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition">
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl text-sm transition shadow-lg shadow-emerald-600/30 mt-2 flex items-center justify-center space-x-2">
+                    <span>Enviar Pedido via WhatsApp</span>
+                </button>
+                <p class="text-[11px] text-slate-400 text-center mt-2 leading-relaxed">
+                    Ao solicitar a inscrição, o seu pedido fica registado e será redirecionado para o WhatsApp do Administrador (<strong class="text-slate-200">943715417</strong>) para aprovação.
+                </p>
+            </form>
+        </div>
+    </section>
+
+    <!-- MAIN DASHBOARD (Authenticated Clients) -->
+    <div id="main-dashboard" class="hidden flex-1 flex flex-col max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+        <!-- PLAYER CONTAINER -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+            <div id="player-wrapper" class="w-full aspect-video bg-black relative flex items-center justify-center">
+                <!-- Native Video.js Player -->
+                <video id="yunatv-player" class="video-js vjs-big-play-centered vjs-theme-city w-full h-full" controls preload="auto" playsinline></video>
+                <!-- YouTube Embed Player -->
+                <iframe id="youtube-player" class="w-full h-full absolute inset-0 hidden" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <!-- Web Embed Player (For Kick, CXTV, Website Streams) -->
+                <iframe id="web-embed-player" class="w-full h-full absolute inset-0 hidden" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+            </div>
+
+            <!-- RESUME PLAYBACK NOTIFICATION BANNER -->
+            <div id="resume-banner" class="hidden bg-slate-950 border-b border-slate-800 p-3 px-4 flex items-center justify-between">
+                <span class="text-xs text-amber-400 font-medium">Continuar de onde parou (<span id="resume-time-str">00:00</span>)?</span>
+                <div class="flex items-center space-x-2">
+                    <button onclick="applyResumePlayback()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold px-2.5 py-1 rounded transition">Continuar</button>
+                    <button onclick="dismissResumeBanner()" class="text-slate-400 hover:text-white text-xs px-2 py-1 transition">Do Início</button>
+                </div>
+            </div>
+
+            <!-- CONTROLS & INFO BAR -->
+            <div class="p-4 bg-slate-900 border-t border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex-1 min-w-0">
+                    <span id="current-category" class="inline-block bg-red-600/20 text-red-400 text-[10px] font-bold uppercase px-2.5 py-0.5 rounded border border-red-500/30 mb-1">
+                        Selecione um conteúdo
+                    </span>
+                    <h2 id="current-title" class="text-xl font-bold text-white truncate">Bem-vindo ao YUNATV Pro</h2>
+                    <p id="current-description" class="text-xs text-slate-400 truncate mt-0.5">Selecione qualquer canal, filme, série ou desenho animado abaixo para assistir.</p>
+                </div>
+
+                <div class="flex items-center space-x-2 flex-wrap">
+                    <!-- Seek controls for long videos -->
+                    <button onclick="seekVideo(-10)" class="bg-slate-800 hover:bg-slate-700 text-xs px-2.5 py-2 rounded-lg font-medium transition border border-slate-700 text-slate-300" title="Recuar 10 segundos">
+                        ⏪ -10s
+                    </button>
+                    <button onclick="seekVideo(10)" class="bg-slate-800 hover:bg-slate-700 text-xs px-2.5 py-2 rounded-lg font-medium transition border border-slate-700 text-slate-300" title="Avançar 10 segundos">
+                        ⏩ +10s
+                    </button>
+                    <!-- Audio Booster -->
+                    <button onclick="toggleAudioBoost()" id="btn-audio-boost" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-2 rounded-lg font-medium transition border border-slate-700 text-slate-300">
+                        🔊 Amplificador (+100%)
+                    </button>
+                    <!-- Theater Mode -->
+                    <button onclick="toggleTheaterMode()" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-2 rounded-lg font-medium transition border border-slate-700 text-slate-300">
+                        Modo Teatro
+                    </button>
+                    <!-- PiP Mode -->
+                    <button onclick="togglePiP()" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-2 rounded-lg font-medium transition border border-slate-700 text-slate-300">
+                        PiP
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CATEGORY NAVIGATION TABS -->
+        <div class="flex items-center space-x-2 overflow-x-auto pb-2 custom-scrollbar">
+            <button onclick="navigateTab('all')" id="tab-all" class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap bg-red-600 text-white">Todos</button>
+            <button onclick="navigateTab('tv')" id="tab-tv" class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800">📺 TV ao Vivo</button>
+            <button onclick="navigateTab('movies')" id="tab-movies" class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800">🎬 Filmes</button>
+            <button onclick="navigateTab('series')" id="tab-series" class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800">🍿 Séries</button>
+            <button onclick="navigateTab('cartoons')" id="tab-cartoons" class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800">🎨 Desenhos Animados</button>
+        </div>
+
+        <!-- CATALOG CONTENT GRID -->
+        <div class="space-y-4">
+            <h3 id="catalog-heading" class="text-base font-bold text-slate-200">Catálogo Disponível</h3>
+            <div id="catalog-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <!-- Dynamic Items Inserted via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- SECRET ADMIN PIN MODAL -->
+    <div id="modal-admin-pin" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+            <div class="text-center">
+                <h3 class="text-lg font-bold text-white">Acesso Restrito</h3>
+                <p class="text-xs text-slate-400 mt-1">Insira o código secreto do Administrador</p>
+            </div>
+            <form onsubmit="verifyAdminPin(event)">
+                <input type="password" id="input-admin-pin" maxlength="4" placeholder="••••" required class="w-full bg-slate-950 border border-slate-800 text-center text-2xl tracking-widest font-mono py-3 rounded-xl text-white focus:outline-none focus:border-red-500 mb-4">
+                <div class="flex space-x-2">
+                    <button type="button" onclick="closeAdminPinModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold py-2.5 rounded-xl transition">Cancelar</button>
+                    <button type="submit" class="flex-1 bg-red-600 hover:bg-red-500 text-white text-xs font-bold py-2.5 rounded-xl transition shadow-lg shadow-red-600/30">Entrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADMIN PANEL DASHBOARD MODAL -->
+    <div id="modal-admin-panel" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- ADMIN HEADER -->
+            <div class="p-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <span class="bg-red-600 text-white font-black px-2.5 py-0.5 rounded text-sm">YUNATV</span>
+                    <h3 class="font-bold text-white text-sm">Painel do Administrador</h3>
+                </div>
+                <button onclick="closeAdminPanel()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+            </div>
+
+            <!-- ADMIN TABS -->
+            <div class="flex border-b border-slate-800 bg-slate-950 px-4 text-xs font-bold overflow-x-auto">
+                <button id="admin-tab-btn-pending" onclick="switchAdminTab('pending')" class="py-3 px-4 text-red-500 border-b-2 border-red-500 transition whitespace-nowrap">Inscrições Pendentes</button>
+                <button id="admin-tab-btn-clients" onclick="switchAdminTab('clients')" class="py-3 px-4 text-slate-400 hover:text-slate-200 transition whitespace-nowrap">Clientes Ativos</button>
+                <button id="admin-tab-btn-content" onclick="switchAdminTab('content')" class="py-3 px-4 text-slate-400 hover:text-slate-200 transition whitespace-nowrap">Gestão de Conteúdos</button>
+            </div>
+
+            <!-- ADMIN BODY CONTENT -->
+            <div class="p-6 flex-1 overflow-y-auto custom-scrollbar space-y-6">
+                
+                <!-- PENDING SIGNUPS TAB -->
+                <div id="admin-view-pending" class="space-y-4">
+                    <h4 class="text-sm font-bold text-slate-200">Pedidos de Inscrição em Espera</h4>
+                    <div id="admin-pending-list" class="space-y-3">
+                        <!-- Dynamic Pending Items -->
+                    </div>
+                </div>
+
+                <!-- ACTIVE CLIENTS MANAGEMENT TAB -->
+                <div id="admin-view-clients" class="space-y-4 hidden">
+                    <h4 class="text-sm font-bold text-slate-200">Contas de Clientes Aprovados</h4>
+                    <div id="admin-clients-list" class="space-y-3">
+                        <!-- Dynamic Approved Clients List -->
+                    </div>
+                </div>
+
+                <!-- CONTENT MANAGEMENT TAB -->
+                <div id="admin-view-content" class="space-y-6 hidden">
+                    <!-- ADD CONTENT FORM -->
+                    <form onsubmit="handleAddContent(event)" class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-4">
+                        <h4 class="text-xs font-bold text-red-400 uppercase tracking-wider">Adicionar Novo Conteúdo</h4>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 mb-1">Título do Conteúdo</label>
+                                <input type="text" id="content-title" required placeholder="Ex: Filme Aventura 2026" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 mb-1">Categoria / Tipo</label>
+                                <select id="content-type" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500">
+                                    <option value="tv">TV ao Vivo</option>
+                                    <option value="movies">Filmes</option>
+                                    <option value="series">Séries</option>
+                                    <option value="cartoons">Desenhos Animados</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 mb-1">Link do Vídeo / YouTube / Web (Kick, CXTV)</label>
+                                <input type="text" id="content-url" required placeholder="https://kick.com/... ou https://youtube.com/..." class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 mb-1">Link da Imagem (Capa / Poster)</label>
+                                <input type="text" id="content-poster" placeholder="https://exemplo.com/imagem.jpg (opcional)" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Descrição</label>
+                            <textarea id="content-desc" rows="2" placeholder="Sinopse ou resumo do conteúdo..." class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500"></textarea>
+                        </div>
+
+                        <button type="submit" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 px-4 rounded-lg text-xs transition shadow-lg shadow-red-600/30">
+                            Publicar Conteúdo no Catálogo
+                        </button>
+                    </form>
+
+                    <!-- EXISTING CONTENT LIST -->
+                    <div class="space-y-3">
+                        <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Conteúdos Publicados no Catálogo</h4>
+                        <div id="admin-content-list" class="space-y-2">
+                            <!-- Dynamic Content List -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Video.js Script -->
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+
+    <!-- MAIN APP JAVASCRIPT LOGIC -->
+    <script>
+        // SYSTEM STORAGE KEYS
+        const STORAGE_KEY_CLIENTS = 'yunatv_clients_data';
+        const STORAGE_KEY_PENDING = 'yunatv_pending_data';
+        const STORAGE_KEY_CATALOG = 'yunatv_catalog_data';
+        const STORAGE_KEY_PLAYBACK_STATE = 'yunatv_playback_timestamps';
+
+        // DEFAULT CATALOG DATA
+        const DEFAULT_CATALOG = [
+            {
+                id: 'chan-tpa1',
+                title: 'TPA 1',
+                type: 'tv',
+                videoUrl: 'https://kick.com/tpaonline',
+                posterUrl: 'https://i.ibb.co/xK22bxHy/images-15.jpg',
+                description: 'Televisão Pública de Angola - Emissão Ao Vivo'
+            },
+            {
+                id: 'chan-zimbo',
+                title: 'TV Zimbo',
+                type: 'tv',
+                videoUrl: 'https://www.cxtvlive.com/live-tv/tv-zimbo',
+                posterUrl: 'https://i.ibb.co/nMXQYrct/images-16.jpg',
+                description: 'TV Zimbo - O Canal de Todos Nós'
+            },
+            {
+                id: 'sample-long-movie',
+                title: 'Big Buck Bunny (Filme MP4)',
+                type: 'movies',
+                videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+                posterUrl: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=600&q=80',
+                description: 'Filme em alta definição com suporte a avanço rápido.'
+            }
+        ];
+
+        // GLOBAL APPLICATION STATE
+        let currentUser = null;
+        let vjsPlayer = null;
+        let currentTab = 'all';
+        let currentPlayingItem = null;
+        let pendingResumeTime = 0;
+        let audioContext = null;
+        let audioSource = null;
+        let gainNode = null;
+        let isAudioBoosted = false;
+
+        // INITIALIZATION
+        document.addEventListener('DOMContentLoaded', () => {
+            initVideoPlayer();
+            initDataStorage();
+            renderCatalog();
+            
+            // Listen for cross-tab storage sync
+            window.addEventListener('storage', () => {
+                renderCatalog();
+                renderAdminPendingList();
+                renderAdminClientsList();
+                renderAdminContentList();
+            });
+        });
+
+        // DATA STORAGE SETUP
+        function initDataStorage() {
+            if (!localStorage.getItem(STORAGE_KEY_CATALOG)) {
+                localStorage.setItem(STORAGE_KEY_CATALOG, JSON.stringify(DEFAULT_CATALOG));
+            }
+            if (!localStorage.getItem(STORAGE_KEY_CLIENTS)) {
+                localStorage.setItem(STORAGE_KEY_CLIENTS, JSON.stringify([]));
+            }
+            if (!localStorage.getItem(STORAGE_KEY_PENDING)) {
+                localStorage.setItem(STORAGE_KEY_PENDING, JSON.stringify([]));
+            }
+            if (!localStorage.getItem(STORAGE_KEY_PLAYBACK_STATE)) {
+                localStorage.setItem(STORAGE_KEY_PLAYBACK_STATE, JSON.stringify({}));
+            }
+        }
+
+        function getCatalog() {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY_CATALOG)) || [];
+        }
+
+        function saveCatalog(catalog) {
+            localStorage.setItem(STORAGE_KEY_CATALOG, JSON.stringify(catalog));
+            renderCatalog();
+            renderAdminContentList();
+        }
+
+        // VIDEO PLAYER SETUP
+        function initVideoPlayer() {
+            vjsPlayer = videojs('yunatv-player', {
+                autoplay: false,
+                controls: true,
+                responsive: true,
+                fluid: true,
+                preload: 'auto'
+            });
+
+            vjsPlayer.on('timeupdate', () => {
+                if (currentPlayingItem && currentPlayingItem.type !== 'tv') {
+                    const currentTime = vjsPlayer.currentTime();
+                    if (currentTime > 10) {
+                        savePlaybackProgress(currentPlayingItem.id, currentTime);
+                    }
+                }
+            });
+        }
+
+        function savePlaybackProgress(itemId, timeInSeconds) {
+            const timestamps = JSON.parse(localStorage.getItem(STORAGE_KEY_PLAYBACK_STATE)) || {};
+            timestamps[itemId] = timeInSeconds;
+            localStorage.setItem(STORAGE_KEY_PLAYBACK_STATE, JSON.stringify(timestamps));
+        }
+
+        function getSavedProgress(itemId) {
+            const timestamps = JSON.parse(localStorage.getItem(STORAGE_KEY_PLAYBACK_STATE)) || {};
+            return timestamps[itemId] || 0;
+        }
+
+        function formatTimeSeconds(seconds) {
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            return hrs > 0 ? `${hrs}:${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}` : `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        // URL DETECTORS & PARSERS
+        function extractYouTubeId(url) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        function isWebEmbedUrl(url) {
+            return url.includes('kick.com') || 
+                   url.includes('cxtvlive.com') || 
+                   url.includes('twitch.tv') || 
+                   url.includes('vimeo.com') || 
+                   url.includes('dailymotion.com') ||
+                   (!url.includes('.m3u8') && !url.includes('.mp4') && !url.includes('.mpd') && !url.includes('.ts') && !extractYouTubeId(url));
+        }
+
+        function formatWebEmbedUrl(url) {
+            if (url.includes('kick.com') && !url.includes('player.kick.com')) {
+                const channelName = url.split('/').pop();
+                return `https://player.kick.com/${channelName}`;
+            }
+            return url;
+        }
+
+        // LOAD MEDIA SOURCE
+        function playMediaSource(item) {
+            currentPlayingItem = item;
+            document.getElementById('current-title').innerText = item.title;
+            document.getElementById('current-description').innerText = item.description || 'Sem descrição disponível.';
+            document.getElementById('current-category').innerText = formatCategoryName(item.type);
+
+            dismissResumeBanner();
+
+            const ytId = extractYouTubeId(item.videoUrl);
+            const isWeb = isWebEmbedUrl(item.videoUrl);
+
+            const vjsEl = document.getElementById('yunatv-player');
+            const ytEl = document.getElementById('youtube-player');
+            const webEl = document.getElementById('web-embed-player');
+
+            // Reset All Players
+            vjsPlayer.pause();
+            ytEl.src = '';
+            webEl.src = '';
+            vjsEl.classList.add('hidden');
+            ytEl.classList.add('hidden');
+            webEl.classList.add('hidden');
+
+            if (ytId) {
+                // 1. YOUTUBE ENGINE
+                ytEl.classList.remove('hidden');
+                ytEl.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&modestbranding=1&rel=0`;
+            } else if (isWeb) {
+                // 2. WEB IFRAME EMBED ENGINE (For Kick, CXTV, Twitch, Web pages)
+                webEl.classList.remove('hidden');
+                webEl.src = formatWebEmbedUrl(item.videoUrl);
+            } else {
+                // 3. NATIVE STREAM ENGINE (HLS .m3u8 / MP4 / TS)
+                vjsEl.classList.remove('hidden');
+                let type = 'video/mp4';
+                if (item.videoUrl.includes('.m3u8')) type = 'application/x-mpegURL';
+                
+                vjsPlayer.src({ src: item.videoUrl, type: type });
+                vjsPlayer.load();
+
+                const savedTime = getSavedProgress(item.id);
+                if (savedTime > 15 && item.type !== 'tv') {
+                    pendingResumeTime = savedTime;
+                    document.getElementById('resume-time-str').innerText = formatTimeSeconds(savedTime);
+                    document.getElementById('resume-banner').classList.remove('hidden');
+                }
+
+                vjsPlayer.play().catch(() => {});
+            }
+
+            document.getElementById('player-wrapper').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function applyResumePlayback() {
+            if (vjsPlayer && pendingResumeTime > 0) {
+                vjsPlayer.currentTime(pendingResumeTime);
+            }
+            dismissResumeBanner();
+        }
+
+        function dismissResumeBanner() {
+            document.getElementById('resume-banner').classList.add('hidden');
+            pendingResumeTime = 0;
+        }
+
+        function seekVideo(seconds) {
+            if (vjsPlayer) {
+                vjsPlayer.currentTime(Math.max(0, vjsPlayer.currentTime() + seconds));
+            }
+        }
+
+        // AUDIO BOOSTER (+200%)
+        function toggleAudioBoost() {
+            const btn = document.getElementById('btn-audio-boost');
+            if (!audioContext) {
+                const videoEl = document.querySelector('video');
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                audioSource = audioContext.createMediaElementSource(videoEl);
+                gainNode = audioContext.createGain();
+                audioSource.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+            }
+
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            isAudioBoosted = !isAudioBoosted;
+            gainNode.gain.value = isAudioBoosted ? 2.0 : 1.0;
+
+            btn.classList.toggle('bg-red-600', isAudioBoosted);
+            btn.classList.toggle('text-white', isAudioBoosted);
+            btn.innerText = isAudioBoosted ? '🔊 Áudio (+200%)' : '🔊 Amplificador (+100%)';
+        }
+
+        // VIEWING MODES
+        function toggleTheaterMode() {
+            const dashboard = document.getElementById('main-dashboard');
+            dashboard.classList.toggle('max-w-7xl');
+            dashboard.classList.toggle('max-w-full');
+        }
+
+        async function togglePiP() {
+            const videoEl = document.querySelector('video');
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else if (document.pictureInPictureEnabled) {
+                await videoEl.requestPictureInPicture();
+            }
+        }
+
+        // AUTHENTICATION WORKFLOW
+        function switchAuthTab(tab) {
+            const btnLogin = document.getElementById('btn-tab-login');
+            const btnSignup = document.getElementById('btn-tab-signup');
+            const formLogin = document.getElementById('form-login');
+            const formSignup = document.getElementById('form-signup');
+
+            if (tab === 'login') {
+                btnLogin.className = "flex-1 py-2 text-center text-red-500 border-b-2 border-red-500 transition";
+                btnSignup.className = "flex-1 py-2 text-center text-slate-400 hover:text-slate-200 transition";
+                formLogin.classList.remove('hidden');
+                formSignup.classList.add('hidden');
+            } else {
+                btnSignup.className = "flex-1 py-2 text-center text-red-500 border-b-2 border-red-500 transition";
+                btnLogin.className = "flex-1 py-2 text-center text-slate-400 hover:text-slate-200 transition";
+                formSignup.classList.remove('hidden');
+                formLogin.classList.add('hidden');
+            }
+        }
+
+        function handleClientLogin(e) {
+            e.preventDefault();
+            const serverName = document.getElementById('login-server').value.trim();
+            const accessCode = document.getElementById('login-code').value.trim();
+
+            const clients = JSON.parse(localStorage.getItem(STORAGE_KEY_CLIENTS)) || [];
+            const user = clients.find(c => c.serverName === serverName && c.accessCode === accessCode);
+
+            if (user) {
+                currentUser = user;
+                document.getElementById('auth-wall').classList.add('hidden');
+                document.getElementById('main-dashboard').classList.remove('hidden');
+                document.getElementById('user-badge').classList.remove('hidden');
+                document.getElementById('badge-username').innerText = user.fullname;
+
+                const catalog = getCatalog();
+                if (catalog.length > 0) playMediaSource(catalog[0]);
+            } else {
+                alert('Servidor ou Código de Acesso do Cliente inválido!');
+            }
+        }
+
+        function handleClientSignup(e) {
+            e.preventDefault();
+            const fullname = document.getElementById('signup-fullname').value.trim();
+            const username = document.getElementById('signup-username').value.trim();
+            const phone = document.getElementById('signup-phone').value.trim().replace(/\D/g, '');
+
+            const pendingList = JSON.parse(localStorage.getItem(STORAGE_KEY_PENDING)) || [];
+            
+            const newPending = { id: Date.now().toString(), fullname, username, phone, date: new Date().toLocaleDateString() };
+            pendingList.push(newPending);
+            localStorage.setItem(STORAGE_KEY_PENDING, JSON.stringify(pendingList));
+
+            const message = encodeURIComponent(`Olá Administrador YUNATV, fiz o pedido de inscrição na plataforma.\n\nNome: ${fullname}\nUtilizador: ${username}\nContacto: ${phone}`);
+            window.open(`https://wa.me/244943715417?text=${message}`, '_blank');
+
+            alert('Pedido de inscrição registado! Foi redirecionado para o WhatsApp do Administrador para validação.');
+            switchAuthTab('login');
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            document.getElementById('main-dashboard').classList.add('hidden');
+            document.getElementById('user-badge').classList.add('hidden');
+            document.getElementById('auth-wall').classList.remove('hidden');
+            vjsPlayer.pause();
+        }
+
+        // ADMIN PIN & MODAL MANAGEMENT
+        function openAdminModal() {
+            document.getElementById('modal-admin-pin').classList.remove('hidden');
+        }
+
+        function closeAdminPinModal() {
+            document.getElementById('modal-admin-pin').classList.add('hidden');
+            document.getElementById('input-admin-pin').value = '';
+        }
+
+        function verifyAdminPin(e) {
+            e.preventDefault();
+            const pin = document.getElementById('input-admin-pin').value;
+            if (pin === '2508') {
+                closeAdminPinModal();
+                renderAdminPendingList();
+                renderAdminClientsList();
+                renderAdminContentList();
+                document.getElementById('modal-admin-panel').classList.remove('hidden');
+            } else {
+                alert('Código secreto incorreto!');
+                document.getElementById('input-admin-pin').value = '';
+            }
+        }
+
+        function closeAdminPanel() {
+            document.getElementById('modal-admin-panel').classList.add('hidden');
+        }
+
+        function switchAdminTab(tab) {
+            const btnPending = document.getElementById('admin-tab-btn-pending');
+            const btnClients = document.getElementById('admin-tab-btn-clients');
+            const btnContent = document.getElementById('admin-tab-btn-content');
+
+            const viewPending = document.getElementById('admin-view-pending');
+            const viewClients = document.getElementById('admin-view-clients');
+            const viewContent = document.getElementById('admin-view-content');
+
+            [btnPending, btnClients, btnContent].forEach(btn => {
+                btn.className = "py-3 px-4 text-slate-400 hover:text-slate-200 transition whitespace-nowrap";
+            });
+            [viewPending, viewClients, viewContent].forEach(view => view.classList.add('hidden'));
+
+            if (tab === 'pending') {
+                btnPending.className = "py-3 px-4 text-red-500 border-b-2 border-red-500 transition whitespace-nowrap";
+                viewPending.classList.remove('hidden');
+            } else if (tab === 'clients') {
+                btnClients.className = "py-3 px-4 text-red-500 border-b-2 border-red-500 transition whitespace-nowrap";
+                viewClients.classList.remove('hidden');
+            } else if (tab === 'content') {
+                btnContent.className = "py-3 px-4 text-red-500 border-b-2 border-red-500 transition whitespace-nowrap";
+                viewContent.classList.remove('hidden');
+            }
+        }
+
+        // ADMIN APPROVAL WORKFLOW
+        function renderAdminPendingList() {
+            const pendingList = JSON.parse(localStorage.getItem(STORAGE_KEY_PENDING)) || [];
+            const container = document.getElementById('admin-pending-list');
+
+            if (pendingList.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">Nenhum pedido de inscrição pendente.</p>`;
+                return;
+            }
+
+            container.innerHTML = pendingList.map(item => `
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h5 class="text-xs font-bold text-white">${item.fullname}</h5>
+                        <p class="text-[11px] text-slate-400">Utilizador: @${item.username} • Tel: ${item.phone || 'N/D'} • Data: ${item.date}</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="approveClient('${item.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">Aprovar e Enviar WhatsApp</button>
+                        <button onclick="rejectClient('${item.id}')" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-red-500/30 transition">Recusar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderAdminClientsList() {
+            const clientsList = JSON.parse(localStorage.getItem(STORAGE_KEY_CLIENTS)) || [];
+            const container = document.getElementById('admin-clients-list');
+
+            if (clientsList.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">Nenhum cliente aprovado de momento.</p>`;
+                return;
+            }
+
+            container.innerHTML = clientsList.map(item => `
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h5 class="text-xs font-bold text-white">${item.fullname}</h5>
+                            <span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold">Ativo</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-1">Servidor: <span class="text-slate-200 font-mono font-bold">${item.serverName}</span> | Código: <span class="text-slate-200 font-mono font-bold">${item.accessCode}</span></p>
+                        <p class="text-[10px] text-slate-500">Tel: ${item.phone || 'N/D'} • Aprovado a: ${item.approvedAt || 'N/D'}</p>
+                    </div>
+                    <button onclick="deleteClient('${item.id}')" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-red-500/30 transition flex-shrink-0">Eliminar / Remover Conta</button>
+                </div>
+            `).join('');
+        }
+
+        function approveClient(id) {
+            let pendingList = JSON.parse(localStorage.getItem(STORAGE_KEY_PENDING)) || [];
+            let clientsList = JSON.parse(localStorage.getItem(STORAGE_KEY_CLIENTS)) || [];
+
+            const item = pendingList.find(p => p.id === id);
+            if (!item) return;
+
+            const serverName = `YUNATV-SRV-${Math.floor(1000 + Math.random() * 9000)}`;
+            const accessCode = `YUNA-${Math.floor(1000 + Math.random() * 9000)}`;
+
+            const approvedClient = { ...item, serverName, accessCode, approvedAt: new Date().toLocaleDateString() };
+            clientsList.push(approvedClient);
+            pendingList = pendingList.filter(p => p.id !== id);
+
+            localStorage.setItem(STORAGE_KEY_CLIENTS, JSON.stringify(clientsList));
+            localStorage.setItem(STORAGE_KEY_PENDING, JSON.stringify(pendingList));
+
+            if (item.phone) {
+                const message = encodeURIComponent(`Olá ${item.fullname}, a sua conta no YUNATV foi aprovada com sucesso! 🎉\n\nOs seus dados de acesso são:\nServidor: ${serverName}\nCódigo de Acesso: ${accessCode}\n\nSeja bem-vindo!`);
+                window.open(`https://wa.me/${item.phone}?text=${message}`, '_blank');
+            }
+
+            alert(`Cliente Aprovado com Sucesso!\n\nDados Gerados:\nServidor: ${serverName}\nCódigo de Acesso: ${accessCode}`);
+            renderAdminPendingList();
+            renderAdminClientsList();
+        }
+
+        function rejectClient(id) {
+            let pendingList = JSON.parse(localStorage.getItem(STORAGE_KEY_PENDING)) || [];
+            pendingList = pendingList.filter(p => p.id !== id);
+            localStorage.setItem(STORAGE_KEY_PENDING, JSON.stringify(pendingList));
+            renderAdminPendingList();
+        }
+
+        function deleteClient(id) {
+            if (confirm('Tem a certeza de que deseja remover esta conta de cliente? O cliente deixará de ter acesso imediatamente.')) {
+                let clientsList = JSON.parse(localStorage.getItem(STORAGE_KEY_CLIENTS)) || [];
+                clientsList = clientsList.filter(c => c.id !== id);
+                localStorage.setItem(STORAGE_KEY_CLIENTS, JSON.stringify(clientsList));
+                renderAdminClientsList();
+            }
+        }
+
+        // ADMIN CONTENT MANAGEMENT
+        function handleAddContent(e) {
+            e.preventDefault();
+            const title = document.getElementById('content-title').value.trim();
+            const type = document.getElementById('content-type').value;
+            const videoUrl = document.getElementById('content-url').value.trim();
+            let posterUrl = document.getElementById('content-poster').value.trim();
+            const description = document.getElementById('content-desc').value.trim();
+
+            const ytId = extractYouTubeId(videoUrl);
+            if (!posterUrl && ytId) {
+                posterUrl = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+            } else if (!posterUrl) {
+                posterUrl = 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=600&q=80';
+            }
+
+            const catalog = getCatalog();
+            const newItem = {
+                id: 'custom-' + Date.now().toString(),
+                title,
+                type,
+                videoUrl,
+                posterUrl,
+                description
+            };
+
+            catalog.unshift(newItem);
+            saveCatalog(catalog);
+
+            e.target.reset();
+            alert('Novo conteúdo publicado no catálogo com sucesso!');
+        }
+
+        function deleteContent(id) {
+            if (confirm('Tem a certeza que deseja remover este conteúdo do catálogo?')) {
+                let catalog = getCatalog();
+                catalog = catalog.filter(c => c.id !== id);
+                saveCatalog(catalog);
+            }
+        }
+
+        function renderAdminContentList() {
+            const catalog = getCatalog();
+            const container = document.getElementById('admin-content-list');
+
+            if (catalog.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 py-4 text-center">Nenhum conteúdo registado no catálogo.</p>`;
+                return;
+            }
+
+            container.innerHTML = catalog.map(item => `
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-3">
+                    <div class="flex items-center space-x-3 min-w-0">
+                        <img src="${item.posterUrl}" class="w-12 h-12 object-cover rounded-lg bg-slate-900 border border-slate-800 flex-shrink-0">
+                        <div class="min-w-0">
+                            <h5 class="text-xs font-bold text-white truncate">${item.title}</h5>
+                            <span class="text-[10px] text-red-400 uppercase font-semibold">${formatCategoryName(item.type)}</span>
+                        </div>
+                    </div>
+                    <button onclick="deleteContent('${item.id}')" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-red-500/30 transition flex-shrink-0">Apagar</button>
+                </div>
+            `).join('');
+        }
+
+        // CATALOG RENDERING & NAVIGATION
+        function navigateTab(category) {
+            currentTab = category;
+            const tabs = ['all', 'tv', 'movies', 'series', 'cartoons'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                if (t === category) {
+                    btn.className = "px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap bg-red-600 text-white shadow-lg shadow-red-600/20";
+                } else {
+                    btn.className = "px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800";
+                }
+            });
+
+            document.getElementById('catalog-heading').innerText = category === 'all' ? 'Catálogo Disponível' : formatCategoryName(category);
+            renderCatalog();
+        }
+
+        function renderCatalog() {
+            const catalog = getCatalog();
+            const grid = document.getElementById('catalog-grid');
+
+            const filtered = currentTab === 'all' ? catalog : catalog.filter(c => c.type === currentTab);
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<p class="col-span-full text-center text-slate-500 text-xs py-8">Nenhum conteúdo disponível nesta categoria.</p>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(item => `
+                <div onclick='playMediaSource(${JSON.stringify(item).replace(/'/g, "&apos;")})' class="group bg-slate-900 border border-slate-800 rounded-xl overflow-hidden cursor-pointer hover:border-red-500 transition duration-300 shadow-lg flex flex-col">
+                    <div class="aspect-[3/4] relative overflow-hidden bg-slate-950">
+                        <img src="${item.posterUrl}" alt="${item.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80"></div>
+                        <span class="absolute top-2 left-2 bg-red-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded shadow">
+                            ${formatCategoryName(item.type)}
+                        </span>
+                    </div>
+                    <div class="p-3 flex-1 flex flex-col justify-between">
+                        <h4 class="text-xs font-bold text-white group-hover:text-red-400 transition truncate">${item.title}</h4>
+                        <p class="text-[10px] text-slate-400 line-clamp-2 mt-1">${item.description || ''}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function formatCategoryName(type) {
+            switch(type) {
+                case 'tv': return 'TV ao Vivo';
+                case 'movies': return 'Filmes';
+                case 'series': return 'Séries';
+                case 'cartoons': return 'Desenhos Animados';
+                default: return 'Geral';
+            }
+        }
+    </script>
+</body>
+</html>
